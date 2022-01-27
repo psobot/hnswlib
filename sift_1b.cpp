@@ -146,12 +146,12 @@ static size_t getCurrentRSS() {
 
 
 static void
-get_gt(unsigned int *massQA, unsigned char *massQ, unsigned char *mass, size_t vecsize, size_t qsize, L2Space<int> &l2space,
+get_gt(unsigned int *massQA, unsigned char *massQ, unsigned char *mass, size_t vecsize, size_t qsize, L2Space<int, unsigned char> &l2space,
        size_t vecdim, vector<std::priority_queue<std::pair<int, labeltype >>> &answers, size_t k) {
 
 
     (vector<std::priority_queue<std::pair<int, labeltype >>>(qsize)).swap(answers);
-    DISTFUNC<int> fstdistfunc_ = l2space.get_dist_func();
+    DISTFUNC<int, unsigned char> fstdistfunc_ = l2space.get_dist_func();
     cout << qsize << "\n";
     for (int i = 0; i < qsize; i++) {
         for (int j = 0; j < k; j++) {
@@ -161,7 +161,7 @@ get_gt(unsigned int *massQA, unsigned char *massQ, unsigned char *mass, size_t v
 }
 
 static float
-test_approx(unsigned char *massQ, size_t vecsize, size_t qsize, HierarchicalNSW<int> &appr_alg, size_t vecdim,
+test_approx(unsigned char *massQ, size_t vecsize, size_t qsize, HierarchicalNSW<int, unsigned char> &appr_alg, size_t vecdim,
             vector<std::priority_queue<std::pair<int, labeltype >>> &answers, size_t k) {
     size_t correct = 0;
     size_t total = 0;
@@ -195,7 +195,7 @@ test_approx(unsigned char *massQ, size_t vecsize, size_t qsize, HierarchicalNSW<
 }
 
 static void
-test_vs_recall(unsigned char *massQ, size_t vecsize, size_t qsize, HierarchicalNSW<int> &appr_alg, size_t vecdim,
+test_vs_recall(unsigned char *massQ, size_t vecsize, size_t qsize, HierarchicalNSW<int, unsigned char> &appr_alg, size_t vecdim,
                vector<std::priority_queue<std::pair<int, labeltype >>> &answers, size_t k) {
     vector<size_t> efs;// = { 10,10,10,10,10 };
     for (int i = k; i < 30; i++) {
@@ -288,16 +288,16 @@ void sift_test1B() {
     unsigned char *mass = new unsigned char[vecdim];
     ifstream input(path_data, ios::binary);
     int in = 0;
-    L2Space<int> l2space(vecdim);
+    L2Space<int, unsigned char> l2space(vecdim);
 
-    HierarchicalNSW<int> *appr_alg;
+    HierarchicalNSW<int, unsigned char> *appr_alg;
     if (exists_test(path_index)) {
         cout << "Loading index from " << path_index << ":\n";
-        appr_alg = new HierarchicalNSW<int>(&l2space, path_index, false);
+        appr_alg = new HierarchicalNSW<int, unsigned char>(&l2space, path_index, false);
         cout << "Actual memory usage: " << getCurrentRSS() / 1000000 << " Mb \n";
     } else {
         cout << "Building index:\n";
-        appr_alg = new HierarchicalNSW<int>(&l2space, vecsize, M, efConstruction);
+        appr_alg = new HierarchicalNSW<int, unsigned char>(&l2space, vecsize, M, efConstruction);
 
 
         input.read((char *) &in, 4);
@@ -311,7 +311,7 @@ void sift_test1B() {
             mass[j] = massb[j] * (1.0f);
         }
 
-        appr_alg->addPoint((void *) (massb), (size_t) 0);
+        appr_alg->addPoint(massb, 0);
         int j1 = 0;
         StopW stopw = StopW();
         StopW stopw_full = StopW();
@@ -341,7 +341,7 @@ void sift_test1B() {
                     stopw.reset();
                 }
             }
-            appr_alg->addPoint((void *) (mass), (size_t) j2);
+            appr_alg->addPoint(mass, j2);
 
 
         }

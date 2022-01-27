@@ -36,7 +36,7 @@ void test() {
     }
       
 
-    hnswlib::L2Space space(d);
+    hnswlib::L2Space<float> space(d);
     hnswlib::AlgorithmInterface<float>* alg_brute  = new hnswlib::BruteforceSearch<float>(&space, 2 * n);
     hnswlib::AlgorithmInterface<float>* alg_hnsw = new hnswlib::HierarchicalNSW<float>(&space, 2 * n);
 
@@ -47,7 +47,7 @@ void test() {
 
     // test searchKnnCloserFirst of BruteforceSearch
     for (size_t j = 0; j < nq; ++j) {
-        const void* p = query.data() + j * d;
+        const float* p = query.data() + j * d;
         auto gd = alg_brute->searchKnn(p, k);
         auto res = alg_brute->searchKnnCloserFirst(p, k);
         assert(gd.size() == res.size());
@@ -58,7 +58,7 @@ void test() {
         }
     }
     for (size_t j = 0; j < nq; ++j) {
-        const void* p = query.data() + j * d;
+        const float* p = query.data() + j * d;
         auto gd = alg_hnsw->searchKnn(p, k);
         auto res = alg_hnsw->searchKnnCloserFirst(p, k);
         assert(gd.size() == res.size());

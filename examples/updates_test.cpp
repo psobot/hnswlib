@@ -120,7 +120,7 @@ test_approx(std::vector<float> &queries, size_t qsize, hnswlib::HierarchicalNSW<
     for (int i = 0; i < qsize; i++)
     {
 
-        std::priority_queue<std::pair<d_type, hnswlib::labeltype>> result = appr_alg.searchKnn((char *)(queries.data() + vecdim * i), K);
+        std::priority_queue<std::pair<d_type, hnswlib::labeltype>> result = appr_alg.searchKnn(queries.data() + vecdim * i, K);
         total += K;
         while (result.size())
         {
@@ -226,14 +226,14 @@ int main(int argc, char **argv)
         printf("Loaded config: N=%d, d_mult=%d, Nq=%d, dim=%d, K=%d\n", N, dummy_data_multiplier, N_queries, d, K);
     }
 
-    hnswlib::L2Space l2space(d);
+    hnswlib::L2Space<float> l2space(d);
     hnswlib::HierarchicalNSW<float> appr_alg(&l2space, N + 1, M, efConstruction);
 
     std::vector<float> dummy_batch = load_batch<float>(path + "batch_dummy_00.bin", N * d);
 
     // Adding enterpoint:
 
-    appr_alg.addPoint((void *)dummy_batch.data(), (size_t)0);
+    appr_alg.addPoint(dummy_batch.data(), 0);
 
     StopW stopw = StopW();
 
@@ -243,12 +243,12 @@ int main(int argc, char **argv)
 
         
         ParallelFor(1, N, num_threads, [&](size_t i, size_t threadId) {
-            appr_alg.addPoint((void *)(dummy_batch.data() + i * d), i);
+            appr_alg.addPoint(dummy_batch.data() + i * d, i);
         });
         appr_alg.checkIntegrity();
 
         ParallelFor(1, N, num_threads, [&](size_t i, size_t threadId) {
-            appr_alg.addPoint((void *)(dummy_batch.data() + i * d), i);
+            appr_alg.addPoint(dummy_batch.data() + i * d, i);
         });
         appr_alg.checkIntegrity();
 
@@ -260,7 +260,7 @@ int main(int argc, char **argv)
             std::vector<float> dummy_batchb = load_batch<float>(path + cpath, N * d);
             
             ParallelFor(0, N, num_threads, [&](size_t i, size_t threadId) {            
-                appr_alg.addPoint((void *)(dummy_batch.data() + i * d), i);
+                appr_alg.addPoint(dummy_batch.data() + i * d, i);
             });
             appr_alg.checkIntegrity();
         }
@@ -271,7 +271,7 @@ int main(int argc, char **argv)
     
     stopw.reset();
     ParallelFor(0, N, num_threads, [&](size_t i, size_t threadId) {
-                    appr_alg.addPoint((void *)(final_batch.data() + i * d), i);
+                    appr_alg.addPoint(final_batch.data() + i * d, i);
                 });
     std::cout<<"Finished. Time taken:" << stopw.getElapsedTimeMicro()*1e-6 << " s\n";
     std::cout << "Running tests\n";
