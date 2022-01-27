@@ -9,20 +9,13 @@ namespace hnswlib {
      */
     template<typename dist_t, typename data_t = dist_t, int K = 1>
     static dist_t
-    InnerProduct(const void *pVect1, const void *pVect2, const void *qty_ptr) {
-        size_t qty = *((size_t *) qty_ptr);
+    InnerProduct(const data_t *pVect1, const data_t *pVect2, const size_t qty) {
         dist_t res = 0;
-        data_t *a = (data_t *) pVect1;
-        data_t *b = (data_t *) pVect2;
 
-        qty = qty / K;
-
-        for (size_t i = 0; i < qty; i++) {
+        for (size_t i = 0; i < qty / K; i++) {
             for (size_t j = 0; j < K; j++) {
                 const size_t index = (i * K) + j;
-                const dist_t _a = a[index];
-                const dist_t _b = b[index];
-                res += _a * _b;
+                res += pVect1[index] * pVect2[index];
             }
         }
 
@@ -31,26 +24,19 @@ namespace hnswlib {
 
     template<typename dist_t, typename data_t = dist_t, int K>
     static dist_t
-    InnerProductAtLeast(const void *__restrict pVect1, const void *__restrict pVect2, const void *__restrict qty_ptr) {
-        size_t k = K;
-        size_t remainder = *((size_t *) qty_ptr) - K;
+    InnerProductAtLeast(const data_t *__restrict pVect1, const data_t *__restrict pVect2, const size_t qty) {
+        size_t remainder = qty - K;
 
-        data_t *a = (data_t *) pVect1;
-        data_t *b = (data_t *) pVect2;
-
-        return InnerProduct<dist_t, data_t, K>(a, b, &k)
-             + InnerProduct<dist_t, data_t, 1>(a + K, b + K, &remainder);
+        return InnerProduct<K>(pVect1, pVect2, K)
+             + InnerProduct<1>(pVect2 + K, pVect2 + K, remainder);
     }
 
 #if defined(USE_AVX)
 
 // Favor using AVX if available.
     static float
-    InnerProductSIMD4Ext(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+    InnerProductSIMD4Ext(const float *pVect1, const float *pVect2, const size_t qty) {
         float PORTABLE_ALIGN32 TmpRes[8];
-        float *pVect1 = (float *) pVect1v;
-        float *pVect2 = (float *) pVect2v;
-        size_t qty = *((size_t *) qty_ptr);
 
         size_t qty16 = qty / 16;
         size_t qty4 = qty / 4;
@@ -95,11 +81,8 @@ namespace hnswlib {
 #elif defined(USE_SSE)
 
     static float
-    InnerProductSIMD4Ext(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+    InnerProductSIMD4Ext(const float *pVect1, const float *pVect2, const size_t qty) {
         float PORTABLE_ALIGN32 TmpRes[8];
-        float *pVect1 = (float *) pVect1v;
-        float *pVect2 = (float *) pVect2v;
-        size_t qty = *((size_t *) qty_ptr);
 
         size_t qty16 = qty / 16;
         size_t qty4 = qty / 4;
@@ -156,11 +139,8 @@ namespace hnswlib {
 #if defined(USE_AVX512)
 
     static float
-    InnerProductSIMD16Ext(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+    InnerProductSIMD16Ext(const float *pVect1, const float *pVect2, const size_t *qty) {
         float PORTABLE_ALIGN64 TmpRes[16];
-        float *pVect1 = (float *) pVect1v;
-        float *pVect2 = (float *) pVect2v;
-        size_t qty = *((size_t *) qty_ptr);
 
         size_t qty16 = qty / 16;
 
@@ -188,11 +168,8 @@ namespace hnswlib {
 #elif defined(USE_AVX)
 
     static float
-    InnerProductSIMD16Ext(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+    InnerProductSIMD16Ext(const float *pVect1, const float *pVect2, const size_t qty) {
         float PORTABLE_ALIGN32 TmpRes[8];
-        float *pVect1 = (float *) pVect1v;
-        float *pVect2 = (float *) pVect2v;
-        size_t qty = *((size_t *) qty_ptr);
 
         size_t qty16 = qty / 16;
 
@@ -226,11 +203,8 @@ namespace hnswlib {
 #elif defined(USE_SSE)
 
       static float
-      InnerProductSIMD16Ext(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
+      InnerProductSIMD16Ext(const float *pVect1, const float *pVect2, const size_t qty) {
         float PORTABLE_ALIGN32 TmpRes[8];
-        float *pVect1 = (float *) pVect1v;
-        float *pVect2 = (float *) pVect2v;
-        size_t qty = *((size_t *) qty_ptr);
 
         size_t qty16 = qty / 16;
 
@@ -274,38 +248,36 @@ namespace hnswlib {
 
 #if defined(USE_SSE) || defined(USE_AVX) || defined(USE_AVX512)
     static float
-    InnerProductSIMD16ExtResiduals(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-        size_t qty = *((size_t *) qty_ptr);
+    InnerProductSIMD16ExtResiduals(const float *pVect1, const float *pVect2, const size_t qty) {
         size_t qty16 = qty >> 4 << 4;
-        float res = InnerProductSIMD16Ext(pVect1v, pVect2v, &qty16);
-        float *pVect1 = (float *) pVect1v + qty16;
-        float *pVect2 = (float *) pVect2v + qty16;
+        auto pVect1Offset = pVect1 + qty16;
+        auto pVect2Offset = pVect2 + qty16;
+        float res = InnerProductSIMD16Ext(pVect1Offset, pVect2Offset, qty16);
 
         size_t qty_left = qty - qty16;
-        float res_tail = InnerProduct<float, float>(pVect1, pVect2, &qty_left);
+        float res_tail = InnerProduct<float>(pVect1Offset, pVect2Offset, qty_left);
         return res + res_tail - 1.0f;
     }
 
     static float
-    InnerProductSIMD4ExtResiduals(const void *pVect1v, const void *pVect2v, const void *qty_ptr) {
-        size_t qty = *((size_t *) qty_ptr);
+    InnerProductSIMD4ExtResiduals(const float *pVect1, const float *pVect2, const size_t qty) {
         size_t qty4 = qty >> 2 << 2;
 
-        float res = InnerProductSIMD4Ext(pVect1v, pVect2v, &qty4);
+        float res = InnerProductSIMD4Ext(pVect1, pVect2, qty4);
         size_t qty_left = qty - qty4;
 
-        float *pVect1 = (float *) pVect1v + qty4;
-        float *pVect2 = (float *) pVect2v + qty4;
-        float res_tail = InnerProduct<float, float>(pVect1, pVect2, &qty_left);
+        auto pVect1Offset = pVect1 + qty4;
+        auto pVect2Offset = pVect2 + qty4;
+        float res_tail = InnerProduct<float>(pVect1Offset, pVect2Offset, qty_left);
 
         return res + res_tail - 1.0f;
     }
 #endif
 
     template<typename dist_t, typename data_t = dist_t>
-    class InnerProductSpace : public SpaceInterface<dist_t> {
+    class InnerProductSpace : public SpaceInterface<dist_t, data_t> {
 
-        DISTFUNC<dist_t> fstdistfunc_;
+        DISTFUNC<dist_t, data_t> fstdistfunc_;
         size_t data_size_;
         size_t dim_;
     public:
@@ -343,12 +315,12 @@ namespace hnswlib {
             return data_size_;
         }
 
-        DISTFUNC<dist_t> get_dist_func() {
+        DISTFUNC<dist_t, data_t> get_dist_func() {
             return fstdistfunc_;
         }
 
-        void *get_dist_func_param() {
-            return &dim_;
+        size_t get_dist_func_param() {
+            return dim_;
         }
         ~InnerProductSpace() {}
     };

@@ -58,41 +58,41 @@ namespace hnswlib {
         in.read((char *) &podRef, sizeof(T));
     }
 
-    template<typename MTYPE>
-    using DISTFUNC = MTYPE(*)(const void *, const void *, const void *);
+    template<typename MTYPE, typename data_t>
+    using DISTFUNC = std::function<MTYPE(const data_t *, const data_t *, const size_t)>;
 
 
-    template<typename MTYPE>
+    template<typename MTYPE, typename data_t>
     class SpaceInterface {
     public:
         //virtual void search(void *);
         virtual size_t get_data_size() = 0;
 
-        virtual DISTFUNC<MTYPE> get_dist_func() = 0;
+        virtual DISTFUNC<MTYPE, data_t> get_dist_func() = 0;
 
-        virtual void *get_dist_func_param() = 0;
+        virtual size_t get_dist_func_param() = 0;
 
         virtual ~SpaceInterface() {}
     };
 
-    template<typename dist_t>
+    template<typename dist_t, typename data_t = dist_t>
     class AlgorithmInterface {
     public:
-        virtual void addPoint(const void *datapoint, labeltype label)=0;
-        virtual std::priority_queue<std::pair<dist_t, labeltype >> searchKnn(const void *, size_t) const = 0;
+        virtual void addPoint(const data_t *datapoint, labeltype label)=0;
+        virtual std::priority_queue<std::pair<dist_t, labeltype> > searchKnn(const data_t *, size_t) const = 0;
 
         // Return k nearest neighbor in the order of closer fist
-        virtual std::vector<std::pair<dist_t, labeltype>>
-            searchKnnCloserFirst(const void* query_data, size_t k) const;
+        virtual std::vector<std::pair<dist_t, labeltype> >
+            searchKnnCloserFirst(const data_t* query_data, size_t k) const;
 
         virtual void saveIndex(const std::string &location)=0;
         virtual ~AlgorithmInterface(){
         }
     };
 
-    template<typename dist_t>
-    std::vector<std::pair<dist_t, labeltype>>
-    AlgorithmInterface<dist_t>::searchKnnCloserFirst(const void* query_data, size_t k) const {
+    template<typename dist_t, typename data_t>
+    std::vector<std::pair<dist_t, labeltype> >
+    AlgorithmInterface<dist_t, data_t>::searchKnnCloserFirst(const data_t* query_data, size_t k) const {
         std::vector<std::pair<dist_t, labeltype>> result;
 
         // here searchKnn returns the result in the order of further first

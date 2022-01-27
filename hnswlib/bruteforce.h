@@ -5,23 +5,23 @@
 #include <algorithm>
 
 namespace hnswlib {
-    template<typename dist_t>
+    template<typename dist_t, typename data_t = dist_t>
     class BruteforceSearch : public AlgorithmInterface<dist_t> {
     public:
-        BruteforceSearch(SpaceInterface <dist_t> *s) {
+        BruteforceSearch(SpaceInterface<dist_t, data_t> *s) {
 
         }
-        BruteforceSearch(SpaceInterface<dist_t> *s, const std::string &location) {
+        BruteforceSearch(SpaceInterface<dist_t, data_t> *s, const std::string &location) {
             loadIndex(location, s);
         }
 
-        BruteforceSearch(SpaceInterface <dist_t> *s, size_t maxElements) {
+        BruteforceSearch(SpaceInterface<dist_t, data_t> *s, size_t maxElements) {
             maxelements_ = maxElements;
             data_size_ = s->get_data_size();
             fstdistfunc_ = s->get_dist_func();
             dist_func_param_ = s->get_dist_func_param();
             size_per_element_ = data_size_ + sizeof(labeltype);
-            data_ = (char *) malloc(maxElements * size_per_element_);
+            data_ = (data_t *) malloc(maxElements * size_per_element_);
             if (data_ == nullptr)
                 std::runtime_error("Not enough memory: BruteforceSearch failed to allocate data");
             cur_element_count = 0;
@@ -31,19 +31,19 @@ namespace hnswlib {
             free(data_);
         }
 
-        char *data_;
+        data_t *data_;
         size_t maxelements_;
         size_t cur_element_count;
         size_t size_per_element_;
 
         size_t data_size_;
-        DISTFUNC <dist_t> fstdistfunc_;
-        void *dist_func_param_;
+        DISTFUNC<dist_t, data_t> fstdistfunc_;
+        size_t dist_func_param_;
         std::mutex index_lock;
 
         std::unordered_map<labeltype,size_t > dict_external_to_internal;
 
-        void addPoint(const void *datapoint, labeltype label) {
+        void addPoint(const data_t *datapoint, labeltype label) {
 
             int idx;
             {
@@ -88,7 +88,7 @@ namespace hnswlib {
 
 
         std::priority_queue<std::pair<dist_t, labeltype >>
-        searchKnn(const void *query_data, size_t k) const {
+        searchKnn(const data_t *query_data, size_t k) const {
             std::priority_queue<std::pair<dist_t, labeltype >> topResults;
             if (cur_element_count == 0) return topResults;
             for (int i = 0; i < k; i++) {
@@ -119,12 +119,12 @@ namespace hnswlib {
             writeBinaryPOD(output, size_per_element_);
             writeBinaryPOD(output, cur_element_count);
 
-            output.write(data_, maxelements_ * size_per_element_);
+            output.write(reinterpret_cast<char*>(data_), maxelements_ * size_per_element_);
 
             output.close();
         }
 
-        void loadIndex(const std::string &location, SpaceInterface<dist_t> *s) {
+        void loadIndex(const std::string &location, SpaceInterface<dist_t, data_t> *s) {
 
 
             std::ifstream input(location, std::ios::binary);
